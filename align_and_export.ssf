@@ -1,0 +1,8 @@
+requires 1.4.0
+
+cd /Users/csvensson/Git/planetary-gif/images
+convert jup fit
+register
+crop auto
+save seq aligned_pngs png
+
