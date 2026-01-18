@@ -1,8 +1,13 @@
 requires 1.4.0
 
 cd /Users/csvensson/Git/planetary-gif/images
-convert jup fit
-register
-crop auto
-save seq aligned_pngs png
+
+# Convert PNG files to a FITS sequence named "jup"
+convert jup -start=1
+
+# Register (align) the sequence - output will be "r_jup"
+register jup
+
+# Apply registration transforms to create aligned sequence "reg_jup"
+seqapplyreg jup -prefix=reg_
 
