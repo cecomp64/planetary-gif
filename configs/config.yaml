@@ -43,6 +43,6 @@ output:
 
 # GIF animation settings
 gif:
-  fps: 10                    # Frames per second
+  fps: 5                    # Frames per second
   crop_padding: 10           # Extra pixels to crop beyond alignment shifts
   ping_pong: true            # Play forward then reverse
