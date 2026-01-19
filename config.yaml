@@ -1,0 +1,41 @@
+# Planetary GIF Processing Configuration
+# Copy this file and modify for your specific imaging setup
+
+# Frame selection from SER files
+frame_selection:
+  top_percent: 0.10          # Use best 10% of frames (0.0-1.0)
+  quality_metric: laplacian  # laplacian (fast) or tenengrad (better for edges)
+
+# Frame stacking
+stacking:
+  method: sigma_clip         # mean, median, or sigma_clip
+  sigma_low: 2.0             # Lower sigma bound for rejection
+  sigma_high: 2.0            # Upper sigma bound for rejection
+
+# Wavelet sharpening (à-trous transform)
+wavelet:
+  enabled: true
+  coefficients:              # Layer multipliers (finest to coarsest detail)
+    - 1.5                    # Layer 1: finest detail (increase for more sharpening)
+    - 1.2                    # Layer 2: fine detail
+    - 1.0                    # Layer 3: medium detail (1.0 = no change)
+    - 1.0                    # Layer 4: coarse detail
+  wavelet_type: bior1.3      # Wavelet basis function
+
+# Deconvolution (Richardson-Lucy)
+deconvolution:
+  enabled: true
+  method: richardson_lucy    # richardson_lucy or wiener
+  iterations: 10             # More iterations = sharper but risk of artifacts
+  psf_sigma: 1.5             # Gaussian PSF width (depends on seeing/optics)
+
+# Output format
+output:
+  bit_depth: 16              # 8 or 16 bit output
+  format: png                # png or tiff
+
+# GIF animation settings
+gif:
+  fps: 10                    # Frames per second
+  crop_padding: 10           # Extra pixels to crop beyond alignment shifts
+  ping_pong: true            # Play forward then reverse

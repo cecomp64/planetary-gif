@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "planetary-gif"
+version = "0.1.0"
+description = "Process planetary astrophotography SER files into rotation GIFs"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+dependencies = [
+    "numpy>=1.23.0",
+    "opencv-python>=4.5.0",
+    "PyWavelets>=1.4.0",
+    "scikit-image>=0.20.0",
+    "PyYAML>=6.0",
+]
+
+[project.scripts]
+planetary-gif = "planetary_gif.cli:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["planetary_gif*"]
