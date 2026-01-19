@@ -1,12 +1,13 @@
 """
 Image sharpening for planetary astrophotography.
 
-Provides wavelet-based sharpening and deconvolution algorithms.
+Provides wavelet-based sharpening, deconvolution, and contrast enhancement.
 """
 
 from typing import List, Optional, Literal
 import numpy as np
 import pywt
+import cv2
 from skimage.restoration import richardson_lucy, wiener
 
 
@@ -284,6 +285,121 @@ def _deconvolve_channel_wiener(channel: np.ndarray,
     return np.clip(result, 0, 1)
 
 
+ContrastMethod = Literal['none', 'stretch', 'clahe']
+
+
+def enhance_contrast(image: np.ndarray,
+                     method: ContrastMethod = 'clahe',
+                     clip_limit: float = 2.0,
+                     stretch_low: float = 0.5,
+                     stretch_high: float = 99.5) -> np.ndarray:
+    """
+    Enhance image contrast.
+
+    Args:
+        image: Input image (grayscale or color, any bit depth)
+        method: Contrast method - 'none', 'stretch', or 'clahe'
+        clip_limit: CLAHE clip limit (higher = more contrast, default 2.0)
+        stretch_low: Percentile for black point in stretch (default 0.5)
+        stretch_high: Percentile for white point in stretch (default 99.5)
+
+    Returns:
+        Contrast-enhanced image in same dtype as input
+    """
+    if method == 'none':
+        return image
+
+    original_dtype = image.dtype
+    is_color = len(image.shape) == 3
+
+    if method == 'stretch':
+        return _stretch_contrast(image, stretch_low, stretch_high)
+    elif method == 'clahe':
+        return _apply_clahe(image, clip_limit)
+
+    return image
+
+
+def _stretch_contrast(image: np.ndarray,
+                      low_percentile: float = 0.5,
+                      high_percentile: float = 99.5) -> np.ndarray:
+    """Apply histogram stretch based on percentiles."""
+    original_dtype = image.dtype
+    is_color = len(image.shape) == 3
+
+    if is_color:
+        channels = [image[:, :, i] for i in range(image.shape[2])]
+        stretched = [
+            _stretch_channel(ch, low_percentile, high_percentile)
+            for ch in channels
+        ]
+        result = np.stack(stretched, axis=2)
+    else:
+        result = _stretch_channel(image, low_percentile, high_percentile)
+
+    if original_dtype == np.uint8:
+        return np.clip(result, 0, 255).astype(np.uint8)
+    elif original_dtype == np.uint16:
+        return np.clip(result, 0, 65535).astype(np.uint16)
+    return result
+
+
+def _stretch_channel(channel: np.ndarray,
+                     low_percentile: float,
+                     high_percentile: float) -> np.ndarray:
+    """Stretch a single channel based on percentiles."""
+    low_val = np.percentile(channel, low_percentile)
+    high_val = np.percentile(channel, high_percentile)
+
+    if high_val - low_val < 1e-10:
+        return channel.astype(np.float64)
+
+    # Stretch to full range
+    stretched = (channel.astype(np.float64) - low_val) / (high_val - low_val)
+
+    if channel.dtype == np.uint8:
+        return stretched * 255
+    elif channel.dtype == np.uint16:
+        return stretched * 65535
+    return stretched
+
+
+def _apply_clahe(image: np.ndarray, clip_limit: float = 2.0) -> np.ndarray:
+    """
+    Apply CLAHE (Contrast Limited Adaptive Histogram Equalization).
+
+    For color images, converts to LAB color space and applies CLAHE
+    only to the luminance channel to preserve color balance.
+    """
+    original_dtype = image.dtype
+    is_color = len(image.shape) == 3
+
+    # Convert to 8-bit for CLAHE (OpenCV requirement)
+    if original_dtype == np.uint16:
+        work_image = (image / 256).astype(np.uint8)
+    else:
+        work_image = image.copy()
+
+    # Create CLAHE object
+    # Tile grid size of 8x8 works well for planetary images
+    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=(8, 8))
+
+    if is_color:
+        # Convert BGR to LAB
+        lab = cv2.cvtColor(work_image, cv2.COLOR_BGR2LAB)
+        # Apply CLAHE to L channel only
+        lab[:, :, 0] = clahe.apply(lab[:, :, 0])
+        # Convert back to BGR
+        result = cv2.cvtColor(lab, cv2.COLOR_LAB2BGR)
+    else:
+        result = clahe.apply(work_image)
+
+    # Convert back to original bit depth
+    if original_dtype == np.uint16:
+        return (result.astype(np.uint16) * 256)
+    return result
+
+
 def sharpen_image(image: np.ndarray,
                   wavelet_enabled: bool = True,
                   wavelet_coefficients: List[float] = [1.5, 1.2, 1.0, 1.0],
@@ -291,9 +407,13 @@ def sharpen_image(image: np.ndarray,
                   deconv_enabled: bool = True,
                   deconv_method: DeconvMethod = 'richardson_lucy',
                   deconv_iterations: int = 10,
-                  psf_sigma: float = 1.5) -> np.ndarray:
+                  psf_sigma: float = 1.5,
+                  contrast_method: ContrastMethod = 'none',
+                  contrast_clip_limit: float = 2.0,
+                  contrast_stretch_low: float = 0.5,
+                  contrast_stretch_high: float = 99.5) -> np.ndarray:
     """
-    Apply full sharpening pipeline (wavelet + deconvolution).
+    Apply full sharpening pipeline (wavelet + deconvolution + contrast).
 
     Args:
         image: Input image
@@ -304,6 +424,10 @@ def sharpen_image(image: np.ndarray,
         deconv_method: Deconvolution method
         deconv_iterations: RL iterations (if using richardson_lucy)
         psf_sigma: PSF sigma for deconvolution
+        contrast_method: Contrast enhancement - 'none', 'stretch', or 'clahe'
+        contrast_clip_limit: CLAHE clip limit (default 2.0)
+        contrast_stretch_low: Percentile for black point (default 0.5)
+        contrast_stretch_high: Percentile for white point (default 99.5)
 
     Returns:
         Sharpened image
@@ -318,5 +442,14 @@ def sharpen_image(image: np.ndarray,
             result = deconvolve_rl(result, deconv_iterations, psf_sigma)
         elif deconv_method == 'wiener':
             result = deconvolve_wiener(result, psf_sigma)
+
+    if contrast_method != 'none':
+        result = enhance_contrast(
+            result,
+            method=contrast_method,
+            clip_limit=contrast_clip_limit,
+            stretch_low=contrast_stretch_low,
+            stretch_high=contrast_stretch_high,
+        )
 
     return result

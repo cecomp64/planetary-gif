@@ -3,7 +3,7 @@
 
 # Frame selection from SER files
 frame_selection:
-  top_percent: 0.10          # Use best 10% of frames (0.0-1.0)
+  top_percent: 0.30          # Use best 10% of frames (0.0-1.0)
   quality_metric: laplacian  # laplacian (fast) or tenengrad (better for edges)
 
 # Frame stacking
@@ -16,8 +16,8 @@ stacking:
 wavelet:
   enabled: true
   coefficients:              # Layer multipliers (finest to coarsest detail)
-    - 1.5                    # Layer 1: finest detail (increase for more sharpening)
-    - 1.2                    # Layer 2: fine detail
+    - 1.8                    # Layer 1: finest detail (increase for more sharpening)
+    - 1.8                    # Layer 2: fine detail
     - 1.0                    # Layer 3: medium detail (1.0 = no change)
     - 1.0                    # Layer 4: coarse detail
   wavelet_type: bior1.3      # Wavelet basis function
@@ -26,8 +26,15 @@ wavelet:
 deconvolution:
   enabled: true
   method: richardson_lucy    # richardson_lucy or wiener
-  iterations: 10             # More iterations = sharper but risk of artifacts
-  psf_sigma: 1.5             # Gaussian PSF width (depends on seeing/optics)
+  iterations: 80             # More iterations = sharper but risk of artifacts
+  psf_sigma: 3.0             # Gaussian PSF width (depends on seeing/optics)
+
+# Contrast enhancement
+contrast:
+  method: clahe              # none, stretch, or clahe
+  clip_limit: 1.4            # CLAHE clip limit (higher = more contrast)
+  stretch_low: 0.5           # Percentile for black point (stretch mode)
+  stretch_high: 99.5         # Percentile for white point (stretch mode)
 
 # Output format
 output:

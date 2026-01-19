@@ -43,6 +43,10 @@ def process_single(args):
         config.deconvolution.psf_sigma = args.psf_sigma
     if args.no_deconvolve:
         config.deconvolution.enabled = False
+    if args.contrast:
+        config.contrast.method = args.contrast
+    if args.contrast_clip:
+        config.contrast.clip_limit = args.contrast_clip
 
     # Load image
     print(f"Loading: {args.input}")
@@ -61,6 +65,8 @@ def process_single(args):
         print(f"  Deconvolution: {config.deconvolution.method}, "
               f"iterations={config.deconvolution.iterations}, "
               f"psf_sigma={config.deconvolution.psf_sigma}")
+    if config.contrast.method != 'none':
+        print(f"  Contrast: {config.contrast.method}")
 
     result = sharpen_image(
         image,
@@ -71,6 +77,10 @@ def process_single(args):
         deconv_method=config.deconvolution.method,
         deconv_iterations=config.deconvolution.iterations,
         psf_sigma=config.deconvolution.psf_sigma,
+        contrast_method=config.contrast.method,
+        contrast_clip_limit=config.contrast.clip_limit,
+        contrast_stretch_low=config.contrast.stretch_low,
+        contrast_stretch_high=config.contrast.stretch_high,
     )
 
     # Save output
@@ -95,6 +105,10 @@ def process_ser(args):
         config.deconvolution.psf_sigma = args.psf_sigma
     if args.no_deconvolve:
         config.deconvolution.enabled = False
+    if args.contrast:
+        config.contrast.method = args.contrast
+    if args.contrast_clip:
+        config.contrast.clip_limit = args.contrast_clip
 
     # Get SER info
     print(f"Processing: {args.input}")
@@ -130,6 +144,8 @@ def process_ser(args):
     if config.deconvolution.enabled:
         print(f"  Deconvolution: {config.deconvolution.method}, "
               f"iterations={config.deconvolution.iterations}")
+    if config.contrast.method != 'none':
+        print(f"  Contrast: {config.contrast.method}")
 
     result = sharpen_image(
         stacked,
@@ -140,6 +156,10 @@ def process_ser(args):
         deconv_method=config.deconvolution.method,
         deconv_iterations=config.deconvolution.iterations,
         psf_sigma=config.deconvolution.psf_sigma,
+        contrast_method=config.contrast.method,
+        contrast_clip_limit=config.contrast.clip_limit,
+        contrast_stretch_low=config.contrast.stretch_low,
+        contrast_stretch_high=config.contrast.stretch_high,
     )
 
     # Save output
@@ -164,6 +184,10 @@ def batch(args):
         config.deconvolution.psf_sigma = args.psf_sigma
     if args.no_deconvolve:
         config.deconvolution.enabled = False
+    if args.contrast:
+        config.contrast.method = args.contrast
+    if args.contrast_clip:
+        config.contrast.clip_limit = args.contrast_clip
 
     # Find SER files
     ser_files = sorted(glob.glob(args.ser_pattern))
@@ -215,6 +239,10 @@ def batch(args):
             deconv_method=config.deconvolution.method,
             deconv_iterations=config.deconvolution.iterations,
             psf_sigma=config.deconvolution.psf_sigma,
+            contrast_method=config.contrast.method,
+            contrast_clip_limit=config.contrast.clip_limit,
+            contrast_stretch_low=config.contrast.stretch_low,
+            contrast_stretch_high=config.contrast.stretch_high,
         )
         print(" done")
 
@@ -344,6 +372,10 @@ Examples:
                           help='PSF sigma for deconvolution (default: 1.5)')
     p_single.add_argument('--no-deconvolve', action='store_true',
                           help='Disable deconvolution')
+    p_single.add_argument('--contrast', choices=['none', 'stretch', 'clahe'],
+                          help='Contrast enhancement method (default: none)')
+    p_single.add_argument('--contrast-clip', type=float, metavar='N',
+                          help='CLAHE clip limit (default: 2.0)')
     p_single.set_defaults(func=process_single)
 
     # process-ser command
@@ -375,6 +407,10 @@ Examples:
                        help='PSF sigma for deconvolution (default: 1.5)')
     p_ser.add_argument('--no-deconvolve', action='store_true',
                        help='Disable deconvolution')
+    p_ser.add_argument('--contrast', choices=['none', 'stretch', 'clahe'],
+                       help='Contrast enhancement method (default: none)')
+    p_ser.add_argument('--contrast-clip', type=float, metavar='N',
+                       help='CLAHE clip limit (default: 2.0)')
     p_ser.set_defaults(func=process_ser)
 
     # batch command
@@ -410,6 +446,10 @@ Examples:
                          help='PSF sigma for deconvolution (default: 1.5)')
     p_batch.add_argument('--no-deconvolve', action='store_true',
                          help='Disable deconvolution')
+    p_batch.add_argument('--contrast', choices=['none', 'stretch', 'clahe'],
+                         help='Contrast enhancement method (default: none)')
+    p_batch.add_argument('--contrast-clip', type=float, metavar='N',
+                         help='CLAHE clip limit (default: 2.0)')
     p_batch.set_defaults(func=batch)
 
     # align command

@@ -45,6 +45,15 @@ class DeconvolutionConfig:
 
 
 @dataclass
+class ContrastConfig:
+    """Contrast enhancement settings."""
+    method: str = 'none'  # 'none', 'stretch', or 'clahe'
+    clip_limit: float = 2.0  # CLAHE clip limit
+    stretch_low: float = 0.5  # Percentile for black point
+    stretch_high: float = 99.5  # Percentile for white point
+
+
+@dataclass
 class OutputConfig:
     """Output settings."""
     bit_depth: int = 16
@@ -66,6 +75,7 @@ class Config:
     stacking: StackingConfig = field(default_factory=StackingConfig)
     wavelet: WaveletConfig = field(default_factory=WaveletConfig)
     deconvolution: DeconvolutionConfig = field(default_factory=DeconvolutionConfig)
+    contrast: ContrastConfig = field(default_factory=ContrastConfig)
     output: OutputConfig = field(default_factory=OutputConfig)
     gif: GifConfig = field(default_factory=GifConfig)
 
@@ -91,6 +101,12 @@ class Config:
                 'method': self.deconvolution.method,
                 'iterations': self.deconvolution.iterations,
                 'psf_sigma': self.deconvolution.psf_sigma,
+            },
+            'contrast': {
+                'method': self.contrast.method,
+                'clip_limit': self.contrast.clip_limit,
+                'stretch_low': self.contrast.stretch_low,
+                'stretch_high': self.contrast.stretch_high,
             },
             'output': {
                 'bit_depth': self.output.bit_depth,
@@ -168,6 +184,18 @@ def load_config(config_path: Optional[str] = None) -> Config:
             config.deconvolution.iterations = int(dc['iterations'])
         if 'psf_sigma' in dc:
             config.deconvolution.psf_sigma = float(dc['psf_sigma'])
+
+    # Update contrast
+    if 'contrast' in data:
+        ct = data['contrast']
+        if 'method' in ct:
+            config.contrast.method = ct['method']
+        if 'clip_limit' in ct:
+            config.contrast.clip_limit = float(ct['clip_limit'])
+        if 'stretch_low' in ct:
+            config.contrast.stretch_low = float(ct['stretch_low'])
+        if 'stretch_high' in ct:
+            config.contrast.stretch_high = float(ct['stretch_high'])
 
     # Update output
     if 'output' in data:
