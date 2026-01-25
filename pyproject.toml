@@ -24,6 +24,9 @@ planetary-gif = "planetary_gif.cli:main"
 dev = [
     "pytest>=7.0.0",
 ]
+autotune = [
+    "scikit-optimize>=0.9.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]

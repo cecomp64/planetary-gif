@@ -1,0 +1,45 @@
+# Auto-tuned configuration
+# Generated: 2026-01-25 11:15:58
+# Input: auto-tune
+# Optimization method: bayesian
+# Iterations: 50
+# Composite score: 0.5025
+#
+# Quality metrics:
+#   Sharpness: 1.4
+#   Noise: 0.00
+#   Artifacts: 0.05
+#   Contrast: 0.343
+#
+frame_selection:
+  top_percent: 0.1
+  quality_metric: tenengrad
+stacking:
+  method: sigma_clip
+  sigma_low: 2.0
+  sigma_high: 2.0
+wavelet:
+  enabled: true
+  coefficients:
+  - 1.156484293527588
+  - 1.6069026479247297
+  - 1.1
+  - 1.0
+  wavelet_type: db1
+deconvolution:
+  enabled: true
+  method: wiener
+  iterations: 100
+  psf_sigma: 4.042916944638767
+contrast:
+  method: clahe
+  clip_limit: 1.4
+  stretch_low: 0.5
+  stretch_high: 99.5
+output:
+  bit_depth: 16
+  format: png
+gif:
+  fps: 14
+  crop_padding: 10
+  ping_pong: true

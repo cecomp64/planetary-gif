@@ -1,0 +1,10 @@
+# Calibrated quality weights for auto-tune
+# Generated: 2026-01-25 11:28:27
+#
+# Good image score: 0.8632
+#
+quality_weights:
+  sharpness: 0.01
+  noise: 0.8
+  artifacts: 0.01
+  contrast: 0.18
