@@ -75,7 +75,8 @@ def wavelet_sharpen(image: np.ndarray,
         image: Input image (grayscale or color, any bit depth)
         coefficients: Multipliers for each wavelet layer (finest to coarsest)
                      Values > 1.0 enhance detail, < 1.0 suppress, 1.0 preserve
-        wavelet_type: Wavelet basis (e.g., 'bior1.3', 'db1', 'haar')
+        wavelet_type: Wavelet basis (e.g., 'bior1.3', 'db1', 'haar', 'gaussian')
+                     'gaussian' uses Gaussian-Laplacian pyramid decomposition
 
     Returns:
         Sharpened image in same dtype as input
@@ -83,16 +84,28 @@ def wavelet_sharpen(image: np.ndarray,
     original_dtype = image.dtype
     is_color = len(image.shape) == 3
 
-    if is_color:
-        # Process each channel separately
-        channels = [image[:, :, i] for i in range(image.shape[2])]
-        sharpened_channels = [
-            _wavelet_sharpen_channel(ch, coefficients, wavelet_type)
-            for ch in channels
-        ]
-        result = np.stack(sharpened_channels, axis=2)
+    # Use Gaussian pyramid for 'gaussian' wavelet type
+    if wavelet_type == 'gaussian':
+        if is_color:
+            channels = [image[:, :, i] for i in range(image.shape[2])]
+            sharpened_channels = [
+                _gaussian_wavelet_sharpen_channel(ch, coefficients)
+                for ch in channels
+            ]
+            result = np.stack(sharpened_channels, axis=2)
+        else:
+            result = _gaussian_wavelet_sharpen_channel(image, coefficients)
     else:
-        result = _wavelet_sharpen_channel(image, coefficients, wavelet_type)
+        if is_color:
+            # Process each channel separately
+            channels = [image[:, :, i] for i in range(image.shape[2])]
+            sharpened_channels = [
+                _wavelet_sharpen_channel(ch, coefficients, wavelet_type)
+                for ch in channels
+            ]
+            result = np.stack(sharpened_channels, axis=2)
+        else:
+            result = _wavelet_sharpen_channel(image, coefficients, wavelet_type)
 
     # Result is in original value range, just need to clip and cast
     if original_dtype == np.uint8:
@@ -100,6 +113,54 @@ def wavelet_sharpen(image: np.ndarray,
     elif original_dtype == np.uint16:
         return np.clip(result, 0, 65535).astype(np.uint16)
     return result
+
+
+def _gaussian_wavelet_sharpen_channel(channel: np.ndarray,
+                                       coefficients: List[float]) -> np.ndarray:
+    """
+    Apply Gaussian-Laplacian pyramid sharpening to a single channel.
+
+    Uses successive Gaussian blurs to decompose the image into detail
+    layers at different scales, similar to the à-trous algorithm but
+    using Gaussian kernels instead of discrete wavelets.
+
+    This approach is used in tools like GIMP's wavelet decompose,
+    RegiStax, and AstroSurface.
+    """
+    # Normalize to float
+    normalized, min_val, max_val = normalize_image(channel)
+
+    levels = len(coefficients)
+
+    # Build Gaussian pyramid - each level is progressively blurred
+    # Sigma doubles at each level (à-trous style)
+    pyramid = [normalized]
+    for i in range(levels):
+        # Kernel size should be ~6*sigma and odd
+        sigma = 2 ** i  # 1, 2, 4, 8, ...
+        ksize = int(6 * sigma) | 1  # Ensure odd
+        ksize = max(3, ksize)  # Minimum kernel size of 3
+        blurred = cv2.GaussianBlur(pyramid[-1], (ksize, ksize), sigma)
+        pyramid.append(blurred)
+
+    # Extract detail layers (Laplacian pyramid)
+    # Each detail layer = current level - next blurred level
+    detail_layers = []
+    for i in range(levels):
+        detail = pyramid[i] - pyramid[i + 1]
+        detail_layers.append(detail)
+
+    # Residual (lowest frequency component)
+    residual = pyramid[-1]
+
+    # Apply coefficients to detail layers and reconstruct
+    result = residual.copy()
+    for i, (detail, coef) in enumerate(zip(detail_layers, coefficients)):
+        result += detail * coef
+
+    # Clip and restore range
+    result = np.clip(result, 0, 1)
+    return result * (max_val - min_val) + min_val
 
 
 def _wavelet_sharpen_channel(channel: np.ndarray,
@@ -280,7 +341,7 @@ def _deconvolve_channel_wiener(channel: np.ndarray,
     normalized, min_val, max_val = normalize_image(channel)
 
     # Apply Wiener filter
-    result, _ = wiener(normalized, psf, balance=balance)
+    result = wiener(normalized, psf, balance=balance)
 
     return np.clip(result, 0, 1)
 
